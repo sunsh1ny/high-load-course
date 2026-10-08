@@ -22,9 +22,7 @@ class CountingErrorMeter(
                 invocations[index % window] = Event.Success()
             }
 
-            is Event.Success -> {
-                // do nothing
-            }
+            is Event.Success -> Unit
 
             null -> {
                 total.incrementAndGet()
@@ -38,9 +36,7 @@ class CountingErrorMeter(
         val index = counter.getAndIncrement()
         val current = invocations[index % window]
         when (current) {
-            is Event.Failure -> {
-                // do nothing
-            }
+            is Event.Failure -> Unit
 
             is Event.Success -> {
                 err.incrementAndGet()
