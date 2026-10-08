@@ -4,7 +4,6 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-### STS ###
 .apt_generated
 .classpath
 .factorypath
@@ -13,14 +12,12 @@ target/
 .springBeans
 .sts4-cache
 
-### IntelliJ IDEA ###
 .idea
 *.iws
 *.iml
 *.ipr
-./http-client.env.json
+http-client.env.json
 
-### NetBeans ###
 /nbproject/private/
 
 /nbbuild/
@@ -31,5 +28,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-### VS Code ###
 .vscode/
+
+.env
+/local/
+/grafana/
+/prometheus/data/
