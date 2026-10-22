@@ -88,4 +88,25 @@ class PaymentAccountCallLimiterTest {
         }
         assertEquals(Unit, limiter.executeBefore(System.currentTimeMillis() + 1_000) {})
     }
+
+    @Test
+    fun `does not execute a call after its deadline`() {
+        val limiter = PaymentAccountCallLimiter(ratePerSecond = 1, parallelRequests = 1)
+
+        assertNull(limiter.executeBefore(System.currentTimeMillis() - 1) {
+            throw AssertionError("An expired call reached the provider")
+        })
+        assertEquals(Unit, limiter.executeBefore(System.currentTimeMillis() + 1_000) {})
+    }
+
+    @Test
+    fun `releases the concurrent slot when the rate slot misses the deadline`() {
+        val limiter = PaymentAccountCallLimiter(ratePerSecond = 1, parallelRequests = 1)
+        assertEquals(Unit, limiter.executeBefore(System.currentTimeMillis() + 5_000) {})
+
+        assertNull(limiter.executeBefore(System.currentTimeMillis() + 50) {
+            throw AssertionError("A rate-limited call reached the provider")
+        })
+        assertEquals(Unit, limiter.executeBefore(System.currentTimeMillis() + 5_000) {})
+    }
 }
