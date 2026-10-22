@@ -19,7 +19,13 @@ class PaymentExternalSystemAdapterImpl(
     private val paymentESService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
     private val paymentProviderHostPort: String,
     private val token: String,
+    private val metrics: PaymentMetrics,
+    private val processingReserveMillis: Long,
 ) : PaymentExternalSystemAdapter {
+
+    init {
+        require(processingReserveMillis >= 0) { "processingReserveMillis must not be negative" }
+    }
 
     companion object {
         private val logger = LoggerFactory.getLogger(PaymentExternalSystemAdapterImpl::class.java)
@@ -45,12 +51,15 @@ class PaymentExternalSystemAdapterImpl(
 
         var interrupted = false
         val result = try {
-            callLimiter.executeBefore(deadline) {
+            callLimiter.executeBefore(deadline - processingReserveMillis) {
                 requestPayment(paymentId, transactionId, amount, deadline)
-            } ?: ExternalSysResponse(
-                transactionId.toString(), paymentId.toString(), false,
-                "Payment deadline expired before provider call"
-            )
+            } ?: run {
+                metrics.expiredBeforeProvider()
+                ExternalSysResponse(
+                    transactionId.toString(), paymentId.toString(), false,
+                    "Insufficient time before payment deadline"
+                )
+            }
         } catch (e: InterruptedException) {
             interrupted = true
             logger.warn("[$accountName] Payment interrupted for txId: $transactionId, payment: $paymentId", e)
@@ -67,6 +76,7 @@ class PaymentExternalSystemAdapterImpl(
             paymentESService.update(paymentId) {
                 it.logProcessing(result.result, now(), transactionId, reason = result.message)
             }
+            metrics.completed(result.result)
         } catch (e: Exception) {
             logger.error("[$accountName] Could not record provider result for txId: $transactionId, payment: $paymentId", e)
             throw e
@@ -76,7 +86,7 @@ class PaymentExternalSystemAdapterImpl(
 
         logger.info(
             "[$accountName] Payment processed for txId: $transactionId, payment: $paymentId, " +
-                "succeeded: ${result.result}, message: ${result.message}"
+                    "succeeded: ${result.result}, message: ${result.message}"
         )
     }
 
@@ -100,16 +110,18 @@ class PaymentExternalSystemAdapterImpl(
         val call = client.newCall(request)
         call.timeout().timeout(remainingMillis, TimeUnit.MILLISECONDS)
         logger.debug("[$accountName] Submit: $paymentId, txId: $transactionId")
-        return call.execute().use { response ->
-            try {
-                val parsed = mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
-                if (response.isSuccessful) parsed else ExternalSysResponse(
-                    transactionId.toString(), paymentId.toString(), false,
-                    parsed.message ?: "Provider returned HTTP ${response.code}"
-                )
-            } catch (e: Exception) {
-                logger.error("[$accountName] Invalid provider response for txId: $transactionId, HTTP ${response.code}", e)
-                ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
+        return metrics.providerCall {
+            call.execute().use { response ->
+                try {
+                    val parsed = mapper.readValue(response.body?.string(), ExternalSysResponse::class.java)
+                    if (response.isSuccessful) parsed else ExternalSysResponse(
+                        transactionId.toString(), paymentId.toString(), false,
+                        parsed.message ?: "Provider returned HTTP ${response.code}"
+                    )
+                } catch (e: Exception) {
+                    logger.error("[$accountName] Invalid provider response for txId: $transactionId, HTTP ${response.code}", e)
+                    ExternalSysResponse(transactionId.toString(), paymentId.toString(), false, e.message)
+                }
             }
         }
     }

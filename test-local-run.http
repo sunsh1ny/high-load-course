@@ -13,3 +13,15 @@ Content-Type: application/json
 ### Stop running test to save time and resources
 # @timeout 120
 POST http://localhost:1234/test/stop/{{serviceName}}
+
+### Run case 3 locally (payment.accounts=acc-5)
+POST http://localhost:1234/test/run
+Content-Type: application/json
+
+{
+  "serviceName": "{{serviceName}}",
+  "token": "{{token}}",
+  "ratePerSecond": 2,
+  "testCount": 500,
+  "processingTimeMillis": 60000
+}
