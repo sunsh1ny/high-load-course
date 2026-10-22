@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import ru.quipy.apigateway.APIController.Order
+import ru.quipy.apigateway.APIController.OrderStatus
 import ru.quipy.streams.AggregateSubscriptionsManager
 import java.time.Duration
 import java.util.*
@@ -31,5 +32,12 @@ class OrderRepository {
 
     fun findById(id: UUID): Order? {
         return orderCache.getIfPresent(id)
+    }
+
+    fun markPaymentInProgress(id: UUID) {
+        orderCache.asMap().computeIfPresent(id) { _, order ->
+            if (order.status == OrderStatus.COLLECTING) order.copy(status = OrderStatus.PAYMENT_IN_PROGRESS)
+            else order
+        }
     }
 }
