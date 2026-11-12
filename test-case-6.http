@@ -1,0 +1,15 @@
+### Start with --spring.profiles.active=case6 (default port 8081).
+POST http://localhost:1234/test/run
+Content-Type: application/json
+
+{
+  "serviceName": "{{serviceName}}",
+  "token": "{{token}}",
+  "ratePerSecond": 7,
+  "testCount": 800,
+  "processingTimeMillis": 3500,
+  "onPremises": false
+}
+
+### Stop the current test.
+POST http://localhost:1234/test/stop/{{serviceName}}

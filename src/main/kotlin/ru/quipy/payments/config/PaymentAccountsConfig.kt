@@ -36,7 +36,11 @@ class PaymentAccountsConfig {
     lateinit var allowedAccounts: List<String>
 
     @Bean
-    fun accountAdapters(paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>): List<PaymentExternalSystemAdapter> {
+    fun accountAdapters(
+        paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+        @Value("\${payment.retry.max-attempts:1}") maxAttempts: Int,
+        @Value("\${payment.retry.delay-millis:50}") retryDelayMillis: Long,
+    ): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
             .GET()
@@ -57,7 +61,9 @@ class PaymentAccountsConfig {
                     it,
                     paymentService,
                     paymentProviderHostPort,
-                    token
+                    token,
+                    maxAttempts,
+                    retryDelayMillis
                 )
             }
     }
