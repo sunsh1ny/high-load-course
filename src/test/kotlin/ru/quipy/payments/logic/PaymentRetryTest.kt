@@ -94,7 +94,7 @@ class PaymentRetryTest {
     }
 
     private fun eventStore(): EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState> =
-        mock(EventSourcingService::class.java) as EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>
+        mock(EventSourcingService::class.java) { null } as EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>
 
     private fun adapter(
         provider: Provider,
