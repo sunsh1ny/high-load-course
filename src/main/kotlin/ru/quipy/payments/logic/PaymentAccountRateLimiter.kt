@@ -6,14 +6,13 @@ import java.util.concurrent.locks.ReentrantLock
 // Use the same service rate for provider pacing and admission estimates.
 internal const val PAYMENT_RATE_PERIOD_NANOS = 1_010_000_000L
 
-internal class PaymentAccountRateLimiter(ratePerSecond: Int) {
+internal class PaymentAccountRateLimiter(ratePerSecond: Int, ratePeriodNanos: Long = PAYMENT_RATE_PERIOD_NANOS) {
     init {
         require(ratePerSecond > 0) { "ratePerSecond must be positive" }
     }
 
     private val scheduleLock = ReentrantLock(true)
-    // Spread calls evenly and leave 1% for transport/scheduling jitter.
-    private val spacingNanos = (PAYMENT_RATE_PERIOD_NANOS + ratePerSecond - 1) / ratePerSecond
+    private val spacingNanos = (ratePeriodNanos + ratePerSecond - 1) / ratePerSecond
     private var nextStartNanos = 0L
 
     fun awaitPermit(deadlineMillis: Long): Boolean {

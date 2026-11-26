@@ -3,8 +3,12 @@ package ru.quipy.payments.logic
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 
-internal class PaymentAccountCallLimiter(ratePerSecond: Int, parallelRequests: Int) {
-    private val rateLimiter = PaymentAccountRateLimiter(ratePerSecond)
+internal class PaymentAccountCallLimiter(
+    ratePerSecond: Int,
+    parallelRequests: Int,
+    ratePeriodNanos: Long = PAYMENT_RATE_PERIOD_NANOS,
+) {
+    private val rateLimiter = PaymentAccountRateLimiter(ratePerSecond, ratePeriodNanos)
 
     init {
         require(parallelRequests > 0) { "parallelRequests must be positive" }

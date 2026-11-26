@@ -3,6 +3,7 @@ package ru.quipy.payments.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -38,8 +39,10 @@ class PaymentAccountsConfig {
     @Bean
     fun accountAdapters(
         paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+        registry: MeterRegistry,
         @Value("\${payment.retry.max-attempts:1}") maxAttempts: Int,
         @Value("\${payment.retry.delay-millis:50}") retryDelayMillis: Long,
+        @Value("\${payment.retry.server-timeout-enabled:false}") retryServerTimeout: Boolean,
     ): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
@@ -63,7 +66,9 @@ class PaymentAccountsConfig {
                     paymentProviderHostPort,
                     token,
                     maxAttempts,
-                    retryDelayMillis
+                    retryDelayMillis,
+                    retryServerTimeout = retryServerTimeout && it.accountName == "acc-7",
+                    registry = registry,
                 )
             }
     }
