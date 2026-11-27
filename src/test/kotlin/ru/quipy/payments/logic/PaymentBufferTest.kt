@@ -42,6 +42,7 @@ class PaymentBufferTest {
         val started = CountDownLatch(1)
         val release = CountDownLatch(1)
         val ran = AtomicBoolean()
+        val discarded = AtomicBoolean()
         try {
             assertThrows(PaymentDeadlineExceeded::class.java) { buffer.submit(0) {} }
             buffer.submit(Long.MAX_VALUE) {
@@ -50,7 +51,7 @@ class PaymentBufferTest {
                 error("test failure")
             }
             assertTrue(started.await(2, TimeUnit.SECONDS))
-            buffer.submit(System.currentTimeMillis() + 100) { ran.set(true) }
+            buffer.submit(System.currentTimeMillis() + 100, onDiscard = { discarded.set(true) }) { ran.set(true) }
             buffer.submit(Long.MAX_VALUE) { ran.set(true) }
             Thread.sleep(150)
         } finally {
@@ -58,6 +59,7 @@ class PaymentBufferTest {
             buffer.close()
         }
         assertTrue(ran.get())
+        assertTrue(discarded.get())
         assertEquals(1.0, registry.get("payment.buffer.tasks").tag("outcome", "expired").counter().count())
         assertEquals(1.0, registry.get("payment.buffer.tasks").tag("outcome", "failed").counter().count())
         assertEquals(1.0, registry.get("payment.buffer.tasks").tag("outcome", "completed").counter().count())

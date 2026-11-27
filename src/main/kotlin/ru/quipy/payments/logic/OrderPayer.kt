@@ -24,19 +24,27 @@ class OrderPayer {
     @Autowired
     private lateinit var paymentBuffer: PaymentBuffer
 
+    @Autowired
+    private lateinit var admissionLimiter: PaymentAdmissionLimiter
+
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
-        paymentBuffer.submit(deadline) {
-            val createdEvent = paymentESService.create {
-                it.create(
-                    paymentId,
-                    orderId,
-                    amount
-                )
+        val permit = admissionLimiter.acquire(deadline)
+        try {
+            paymentBuffer.submit(deadline, onDiscard = permit::close) {
+                try {
+                    val createdEvent = paymentESService.create {
+                        it.create(paymentId, orderId, amount)
+                    }
+                    logger.trace("Payment ${createdEvent.paymentId} for order $orderId created.")
+                    paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+                } finally {
+                    permit.close()
+                }
             }
-            logger.trace("Payment ${createdEvent.paymentId} for order $orderId created.")
-
-            paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
+        } catch (e: Exception) {
+            permit.close()
+            throw e
         }
         return createdAt
     }

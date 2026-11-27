@@ -34,10 +34,13 @@ class PaymentBackpressureTest {
         val mvc = MockMvcBuilders.standaloneSetup(controller).build()
         val order = APIController.Order(UUID.randomUUID(), UUID.randomUUID(), 0, APIController.OrderStatus.COLLECTING, 100)
         repository.save(order)
-        for ((failure, status) in listOf(PaymentBufferFull() to 429, PaymentDeadlineExceeded() to 408, PaymentBufferUnavailable() to 503)) {
+        for ((failure, status) in listOf(PaymentBufferFull() to 429, PaymentDeadlineExceeded() to 408, PaymentBufferUnavailable() to 503, PaymentAdmissionRejected(12345) to 429)) {
             `when`(payer.processPayment(eq(order.id) ?: order.id, eq(100), any(UUID::class.java) ?: order.id, anyLong())).thenThrow(failure)
             val response = mvc.perform(post("/orders/${order.id}/payment").param("deadline", Long.MAX_VALUE.toString())).andReturn().response
             assertEquals(status, response.status)
+            if (failure is PaymentAdmissionRejected) {
+                assertEquals("12345", response.getHeader("Retry-After"))
+            }
             assertEquals(APIController.OrderStatus.COLLECTING, repository.findById(order.id)!!.status)
             reset(payer)
         }

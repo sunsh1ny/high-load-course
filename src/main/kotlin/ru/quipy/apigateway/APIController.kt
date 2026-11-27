@@ -11,6 +11,7 @@ import ru.quipy.payments.logic.OrderPayer
 import ru.quipy.payments.logic.PaymentBufferFull
 import ru.quipy.payments.logic.PaymentBufferUnavailable
 import ru.quipy.payments.logic.PaymentDeadlineExceeded
+import ru.quipy.payments.logic.PaymentAdmissionRejected
 import java.util.*
 
 @RestController
@@ -73,6 +74,13 @@ class APIController {
 
     @ExceptionHandler(PaymentBufferFull::class)
     fun bufferFull() = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build<Void>()
+
+    @ExceptionHandler(PaymentAdmissionRejected::class)
+    fun admissionRejected(error: PaymentAdmissionRejected) =
+        ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            // The course's Bombardier interprets this header as an epoch timestamp in ms.
+            .header("Retry-After", error.retryAtMillis.toString())
+            .build<Void>()
 
     @ExceptionHandler(PaymentDeadlineExceeded::class)
     fun deadlineExceeded() = ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).build<Void>()

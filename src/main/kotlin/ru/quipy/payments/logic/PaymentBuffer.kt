@@ -35,12 +35,13 @@ class PaymentBuffer(
         Gauge.builder("payment.buffer.capacity", capacity) { it.toDouble() }.strongReference(true).register(registry)
     }
 
-    fun submit(deadline: Long, task: () -> Unit) {
+    fun submit(deadline: Long, onDiscard: () -> Unit = {}, task: () -> Unit) {
         if (deadline <= System.currentTimeMillis()) throw PaymentDeadlineExceeded()
         try {
             executor.execute {
                 if (deadline <= System.currentTimeMillis()) {
                     expired.increment()
+                    onDiscard()
                 } else {
                     try {
                         task()
