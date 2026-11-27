@@ -8,5 +8,5 @@ Content-Type: application/json
   "ratePerSecond": 200,
   "testCount": 6000,
   "processingTimeMillis": 3000,
-  "onPremises": true
+  "onPremises": false
 }
